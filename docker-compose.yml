@@ -1,30 +1,52 @@
 version: '3.8'
 
 services:
-  app:
+  # PHP-FPM (Laravel) サービス
+  php:
     build:
-      context: ./backend
+      context: .
+      dockerfile: Dockerfile
     container_name: laravel_app
-    command: bash -c "php artisan migrate && apache2-foreground"
-    ports:
-      - "8080:80"
     volumes:
-      - ./backend/src:/var/www/html
+      - ./laravel-app:/var/www
+    networks:
+      - laravel
     depends_on:
       - db
+    command: sh -c "php artisan migrate --force && php-fpm"
 
+  # Nginx サービス
+  nginx:
+    image: nginx:latest
+    container_name: nginx_server
+    volumes:
+      - ./laravel-app:/var/www
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "8080:80"
+    depends_on:
+      - php
+    networks:
+      - laravel
+
+  # MySQL (オプション)
   db:
-    image: mysql:8.0
-    container_name: mysql
+    image: mysql:5.7
+    container_name: mysql_db
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: laravel
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
     volumes:
       - dbdata:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    networks:
+      - laravel
+
+networks:
+  laravel:
+    driver: bridge
 
 volumes:
   dbdata:
+    driver: local
