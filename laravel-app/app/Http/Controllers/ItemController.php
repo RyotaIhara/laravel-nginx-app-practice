@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Entities\Item;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Services\ItemService;
 use Illuminate\Http\Request;
 
 class ItemController extends Controller
 {
-    private $entityManager;
+    private $itemService;
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(ItemService $itemService)
     {
-        $this->entityManager = $entityManager;
+        $this->itemService = $itemService;
     }
 
     /**
@@ -20,11 +19,8 @@ class ItemController extends Controller
      */
     public function index()
     {
-        // データベースから全てのアイテムを取得
-        $itemRepository = $this->entityManager->getRepository(Item::class);
-        $items = $itemRepository->findAll();
+        $items = $this->itemService->getAllItems();
 
-        // itemsビューにデータを渡して表示
         return view('items.index', ['items' => $items]);
     }
 
@@ -47,13 +43,7 @@ class ItemController extends Controller
             'count' => 'required|integer'
         ]);
 
-        $item = new Item();
-        $item->setItemName($validated['item_name']);
-        $item->setAmount($validated['amount']);
-        $item->setCount($validated['count']);
-
-        $this->entityManager->persist($item);
-        $this->entityManager->flush();
+        $this->itemService->createItem($validated);
 
        return redirect()->route('items.index')->with('success', 'Item created successfully.');
    }
@@ -63,8 +53,7 @@ class ItemController extends Controller
      */
     public function show(string $id)
     {
-        $itemRepository = $this->entityManager->getRepository(Item::class);
-        $item = $itemRepository->find($id);
+        $item = $this->itemService->getItem($id);
 
         return view('items.show', compact('item'));
     }
@@ -74,12 +63,11 @@ class ItemController extends Controller
      */
     public function edit(string $id)
     {
-        $itemRepository = $this->entityManager->getRepository(Item::class);
-        $item = $itemRepository->find($id);
+        $item = $this->itemService->getItem($id);
 
         return view('items.edit', compact('item'));
     }
-  
+
     /**
      * Update the specified resource in storage.
      */
@@ -90,33 +78,19 @@ class ItemController extends Controller
             'amount' => 'required|numeric',
             'count' => 'required|integer'
         ]);
-  
-        $itemRepository = $this->entityManager->getRepository(Item::class);
-        $item = $itemRepository->find($id);
-  
-        $item->setItemName($validated['item_name']);
-        $item->setAmount($validated['amount']);
-        $item->setCount($validated['count']);
 
-        $this->entityManager->persist($item);
-        $this->entityManager->flush();
-  
+        $this->itemService->updateItem($id, $validated);
+
         return redirect()->route('items.index')->with('success', 'Item updated successfully.');
-  }
+    }
 
-   /**
-    * Remove the specified resource from storage.
-    */
-   public function destroy(string $id)
-   {
-        $itemRepository = $this->entityManager->getRepository(Item::class);
-        $item = $itemRepository->find($id);
-
-        if ($item) {
-            $this->entityManager->remove($item);
-            $this->entityManager->flush();
-        }
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(string $id)
+    {
+        $this->itemService->deleteItem($id);
 
        return redirect()->route('items.index')->with('success', 'Item deleted successfully.');
-   }
+    }
 }
